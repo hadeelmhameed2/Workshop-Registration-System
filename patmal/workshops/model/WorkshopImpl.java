@@ -59,7 +59,30 @@ public class WorkshopImpl implements Workshop {
     public void setInstructor(Instructor instructor) {
         this.instructor = instructor;
     }
-    
+
+    /**
+     * Two workshops are equal when they have the same system-assigned id.
+     * The instructor is mutable, so it is deliberately not compared.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Workshop other)) {
+            return false;
+        }
+        return id.equals(other.getId());
+    }
+
+    /**
+     * Consistent with {@link #equals(Object)}: based on the id only.
+     */
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     @Override
     public String toString() {
         return "WorkshopImpl{" +

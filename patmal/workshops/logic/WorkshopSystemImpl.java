@@ -21,13 +21,15 @@ import java.util.Objects;
  */
 public class WorkshopSystemImpl implements WorkshopSystem {
     
-    private Map<String, Instructor> instructors;
-    private Map<String, Student> students;
-    private Map<Integer, Workshop> workshops;
-    private Map<Integer, Team> teams;
-    
-    private Integer workshopIdCounter;
-    private Integer teamIdCounter;
+    // The maps hold the concrete classes, so the system can call the package-internal
+    // setters (setTeam, setInstructor, addWorkshop...) without instanceof checks and casts.
+    private final Map<String, InstructorImpl> instructors;
+    private final Map<String, StudentImpl> students;
+    private final Map<Integer, WorkshopImpl> workshops;
+    private final Map<Integer, TeamImpl> teams;
+
+    private int workshopIdCounter;
+    private int teamIdCounter;
     
     /**
      * Constructs a new WorkshopSystemImpl with empty collections
@@ -145,7 +147,7 @@ public class WorkshopSystemImpl implements WorkshopSystem {
             throw new IllegalArgumentException("Instructor with ID '" + id + "' already exists");
         }
         
-        Instructor instructor = new InstructorImpl(id, name, email, new ArrayList<>());
+        InstructorImpl instructor = new InstructorImpl(id, name, email, new ArrayList<>());
         instructors.put(id, instructor);
         return instructor;
     }
@@ -170,7 +172,7 @@ public class WorkshopSystemImpl implements WorkshopSystem {
             throw new IllegalArgumentException("Student with ID '" + id + "' already exists");
         }
         
-        Student student = new StudentImpl(id, name, email, null);
+        StudentImpl student = new StudentImpl(id, name, email, null);
         students.put(id, student);
         return student;
     }
@@ -190,8 +192,8 @@ public class WorkshopSystemImpl implements WorkshopSystem {
         
         Integer workshopId = workshopIdCounter;
         workshopIdCounter++;
-        
-        Workshop workshop = new WorkshopImpl(workshopId, name, description, null);
+
+        WorkshopImpl workshop = new WorkshopImpl(workshopId, name, description, null);
         workshops.put(workshopId, workshop);
         return workshop;
     }
@@ -199,23 +201,50 @@ public class WorkshopSystemImpl implements WorkshopSystem {
     /**
      * Associates a workshop with an instructor by updating both sides of the relationship.
      * Sets the instructor on the workshop and adds the workshop to the instructor's list.
+     * If the workshop was already taught by another instructor, it is removed from that
+     * instructor's list, so both sides of the relation stay consistent.
      *
      * @param instructor the instructor to associate
      * @param workshop   the workshop to associate
-     * @throws IllegalArgumentException if instructor or workshop is null
+     * @throws NullPointerException     if instructor or workshop is null
+     * @throws IllegalArgumentException if instructor or workshop is not registered in this system
      */
     @Override
     public void associateWorkshopWithInstructor(Instructor instructor, Workshop workshop) {
+        InstructorImpl newInstructor = requireRegisteredInstructor(instructor);
+        WorkshopImpl registeredWorkshop = requireRegisteredWorkshop(workshop);
+
+        Instructor previousInstructor = registeredWorkshop.getInstructor();
+        if (previousInstructor != null) {
+            instructors.get(previousInstructor.getId()).removeWorkshop(registeredWorkshop);
+        }
+
+        registeredWorkshop.setInstructor(newInstructor);
+        newInstructor.addWorkshop(registeredWorkshop);
+    }
+
+    /**
+     * Resolves the given instructor to the object registered in this system (matched by id).
+     */
+    private InstructorImpl requireRegisteredInstructor(Instructor instructor) {
         Objects.requireNonNull(instructor, "Instructor cannot be null");
+        InstructorImpl registered = instructors.get(instructor.getId());
+        if (registered == null) {
+            throw new IllegalArgumentException("Instructor with ID '" + instructor.getId() + "' does not exist");
+        }
+        return registered;
+    }
+
+    /**
+     * Resolves the given workshop to the object registered in this system (matched by id).
+     */
+    private WorkshopImpl requireRegisteredWorkshop(Workshop workshop) {
         Objects.requireNonNull(workshop, "Workshop cannot be null");
-        
-        if (workshop instanceof WorkshopImpl) {
-            ((WorkshopImpl) workshop).setInstructor(instructor);
+        WorkshopImpl registered = workshops.get(workshop.getId());
+        if (registered == null) {
+            throw new IllegalArgumentException("Workshop with ID '" + workshop.getId() + "' does not exist");
         }
-        
-        if (instructor instanceof InstructorImpl) {
-            ((InstructorImpl) instructor).addWorkshop(workshop);
-        }
+        return registered;
     }
     
     /**
@@ -230,24 +259,26 @@ public class WorkshopSystemImpl implements WorkshopSystem {
      *         - Any student ID in memberIds doesn't exist
      *         - memberIds contains duplicate IDs
      *         - Any student in memberIds is already in a team
+     *         - The workshop is not registered in this system
      */
     @Override
     public Team createTeam(String name, Workshop workshop, List<String> memberIds) {
         Objects.requireNonNull(name, "Team name cannot be null");
-        Objects.requireNonNull(workshop, "Workshop cannot be null");
         Objects.requireNonNull(memberIds, "Member IDs list cannot be null");
-        
+
         // Validation phase - check all conditions BEFORE modifying any state
-        
+
+        WorkshopImpl registeredWorkshop = requireRegisteredWorkshop(workshop);
+
         // Check for duplicate member IDs
         if (memberIds.size() != memberIds.stream().distinct().count()) {
             throw new IllegalArgumentException("Member IDs list contains duplicates");
         }
         
         // Collect all student objects and validate they exist and are free
-        List<Student> teamMembers = new ArrayList<>();
+        List<StudentImpl> teamMembers = new ArrayList<>();
         for (String memberId : memberIds) {
-            Student student = students.get(memberId);
+            StudentImpl student = students.get(memberId);
             if (student == null) {
                 throw new IllegalArgumentException("Student with ID '" + memberId + "' does not exist");
             }
@@ -261,14 +292,12 @@ public class WorkshopSystemImpl implements WorkshopSystem {
         Integer teamId = teamIdCounter;
         teamIdCounter++;
         
-        Team team = new TeamImpl(teamId, name, teamMembers, workshop);
+        TeamImpl team = new TeamImpl(teamId, name, new ArrayList<>(teamMembers), registeredWorkshop);
         teams.put(teamId, team);
-        
+
         // Link each student to the team
-        for (Student student : teamMembers) {
-            if (student instanceof StudentImpl) {
-                ((StudentImpl) student).setTeam(team);
-            }
+        for (StudentImpl student : teamMembers) {
+            student.setTeam(team);
         }
         
         return team;

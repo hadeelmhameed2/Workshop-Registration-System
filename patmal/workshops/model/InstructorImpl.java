@@ -63,7 +63,41 @@ public class InstructorImpl implements Instructor {
             workshops.add(workshop);
         }
     }
-    
+
+    /**
+     * Removes a workshop from this instructor's list.
+     * Used internally by WorkshopSystemImpl when a workshop moves to another instructor.
+     *
+     * @param workshop the workshop to remove
+     */
+    public void removeWorkshop(Workshop workshop) {
+        workshops.remove(workshop);
+    }
+
+    /**
+     * Two instructors are equal when they have the same id - the id is the instructor's
+     * identity in the system. The workshops list is mutable (and points back to this
+     * instructor), so it is deliberately not compared.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Instructor other)) {
+            return false;
+        }
+        return id.equals(other.getId());
+    }
+
+    /**
+     * Consistent with {@link #equals(Object)}: based on the id only.
+     */
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     @Override
     public String toString() {
         return "InstructorImpl{" +

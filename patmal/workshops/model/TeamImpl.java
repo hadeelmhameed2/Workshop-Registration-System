@@ -52,7 +52,31 @@ public class TeamImpl implements Team {
     public Workshop getWorkshop() {
         return workshop;
     }
-    
+
+    /**
+     * Two teams are equal when they have the same system-assigned id.
+     * The members list points back to the team (through each student), so it is
+     * deliberately not compared.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Team other)) {
+            return false;
+        }
+        return id.equals(other.getId());
+    }
+
+    /**
+     * Consistent with {@link #equals(Object)}: based on the id only.
+     */
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     @Override
     public String toString() {
         return "TeamImpl{" +

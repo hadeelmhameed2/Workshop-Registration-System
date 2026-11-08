@@ -79,7 +79,30 @@ public class StudentImpl implements Student {
     public void setTeam(Team team) {
         this.team = team;
     }
-    
+
+    /**
+     * Two students are equal when they have the same id - the id is the student's
+     * identity in the system. The team is mutable, so it is deliberately not compared.
+     */
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (!(o instanceof Student other)) {
+            return false;
+        }
+        return id.equals(other.getId());
+    }
+
+    /**
+     * Consistent with {@link #equals(Object)}: based on the id only.
+     */
+    @Override
+    public int hashCode() {
+        return id.hashCode();
+    }
+
     @Override
     public String toString() {
         return "StudentImpl{" +

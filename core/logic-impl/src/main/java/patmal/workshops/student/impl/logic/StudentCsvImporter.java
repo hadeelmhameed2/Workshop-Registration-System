@@ -11,8 +11,12 @@ import patmal.workshops.api.model.Student;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Reader;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -21,10 +25,13 @@ import java.util.List;
  * Registers students from a UTF-8 CSV file, with Apache Commons CSV.
  * <p>
  * The first line must be the header {@code id,name,email}; every other line is one student.
- * Empty lines are ignored and values may be quoted. Each line is registered through
- * {@link WorkshopSystem#createStudent}, so exactly the same rules apply as for a direct call.
- * The lines are processed in file order and the import stops at the first rejected line:
- * the students of the lines before it stay registered.
+ * Empty lines, and lines that hold only spaces or tabs, are ignored, and values may be quoted.
+ * Each line is registered through {@link WorkshopSystem#createStudent}, so exactly the same
+ * rules apply as for a direct call. The lines are processed in file order and the import stops
+ * at the first rejected line: the students of the lines before it stay registered.
+ * <p>
+ * The file is decoded strictly: bytes that are not valid UTF-8 make the file unreadable
+ * instead of being silently replaced.
  */
 final class StudentCsvImporter {
 
@@ -49,21 +56,28 @@ final class StudentCsvImporter {
      *
      * @return the students registered by this import, in file order
      * @throws IllegalArgumentException if the header is missing or wrong, or at the first rejected line
-     * @throws UncheckedIOException     if the file cannot be read
+     * @throws UncheckedIOException     if the file cannot be read: missing, a folder, an invalid path,
+     *                                  or content that is not valid UTF-8
      */
     List<Student> importStudents(File source) {
+        Path path = pathOf(source);
         List<Student> imported = new ArrayList<>();
-        try (CSVParser parser = CSVParser.parse(source, StandardCharsets.UTF_8, FORMAT)) {
+        // Files.newBufferedReader decodes strictly: invalid UTF-8 throws a MalformedInputException,
+        // which is an IOException. Both resources are closed, so the file is never left locked.
+        try (Reader reader = Files.newBufferedReader(path, StandardCharsets.UTF_8);
+             CSVParser parser = CSVParser.parse(reader, FORMAT)) {
             Iterator<CSVRecord> lines = parser.iterator();
             requireHeader(source, lines);
-            while (lines.hasNext()) {
-                imported.add(register(source, parser, lines.next(), imported.size()));
+            CSVRecord line;
+            while ((line = nextNonBlankLine(lines)) != null) {
+                imported.add(register(source, parser, line, imported.size()));
             }
         } catch (IOException e) {
             throw unreadable(source, e);
         } catch (UncheckedIOException e) {
             // The parser reports a malformed line (an unclosed quote, for example) as a CSVException
             // wrapped in an UncheckedIOException: that is a rejected line, not a file that cannot be read.
+            // Any other cause (invalid UTF-8, a read error) means that the file cannot be read.
             if (e.getCause() instanceof CSVException malformed) {
                 throw rejected(source, imported.size(), "malformed CSV: " + malformed.getMessage(), malformed);
             }
@@ -73,17 +87,51 @@ final class StudentCsvImporter {
         return imported;
     }
 
+    /**
+     * File.toPath() throws an InvalidPathException (an IllegalArgumentException) for a name that the
+     * file system cannot hold, such as bad&lt;name&gt;.csv on Windows. Such a file cannot be read,
+     * so it is reported like any other read failure, not like a rejected line.
+     */
+    private static Path pathOf(File source) {
+        try {
+            return source.toPath();
+        } catch (InvalidPathException e) {
+            throw unreadable(source, new IOException("Invalid file path: " + source, e));
+        }
+    }
+
     private static void requireHeader(File source, Iterator<CSVRecord> lines) {
-        if (!lines.hasNext()) {
+        CSVRecord headerLine = nextNonBlankLine(lines);
+        if (headerLine == null) {
             throw rejected(source, 0, "the header line " + String.join(",", HEADER) + " is missing", null);
         }
-        List<String> header = new ArrayList<>(lines.next().toList());
+        List<String> header = new ArrayList<>(headerLine.toList());
         if (header.get(0).startsWith(BYTE_ORDER_MARK)) {
             header.set(0, header.get(0).substring(BYTE_ORDER_MARK.length()));
         }
         if (!header.equals(HEADER)) {
             throw rejected(source, 0, "wrong header " + header + ", expected " + String.join(",", HEADER), null);
         }
+    }
+
+    /** The next line that is not blank (see {@link #isBlank}), or null at the end of the file. */
+    private static CSVRecord nextNonBlankLine(Iterator<CSVRecord> lines) {
+        while (lines.hasNext()) {
+            CSVRecord line = lines.next();
+            if (!isBlank(line)) {
+                return line;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * True for a line that holds only spaces or tabs. The parser already skips empty lines; it reads
+     * a blank line as one blank value, and such a line is skipped the same way. A line with commas
+     * (", ," for example) has several values: it is not blank, and it is rejected like any other line.
+     */
+    private static boolean isBlank(CSVRecord line) {
+        return line.size() == 1 && line.get(0).isBlank();
     }
 
     private Student register(File source, CSVParser parser, CSVRecord line, int importedSoFar) {

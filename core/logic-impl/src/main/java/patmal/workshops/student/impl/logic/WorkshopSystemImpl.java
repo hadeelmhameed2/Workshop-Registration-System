@@ -43,9 +43,6 @@ public class WorkshopSystemImpl implements WorkshopSystem {
     private int workshopIdCounter;
     private int teamIdCounter;
 
-    private final JsonExporter jsonExporter;
-    private final StudentCsvImporter csvImporter;
-
     /**
      * Constructs a new WorkshopSystemImpl with empty collections
      * and ID counters initialized to 1.
@@ -57,9 +54,6 @@ public class WorkshopSystemImpl implements WorkshopSystem {
         this.teams = new LinkedHashMap<>();
         this.workshopIdCounter = 1;
         this.teamIdCounter = 1;
-        // Both only keep the reference: they read the system or call createStudent later, on demand
-        this.jsonExporter = new JsonExporter(this);
-        this.csvImporter = new StudentCsvImporter(this);
     }
 
     /**
@@ -208,6 +202,7 @@ public class WorkshopSystemImpl implements WorkshopSystem {
      * @param name        the name of the workshop
      * @param description the description of the workshop
      * @return the created workshop
+     * @throws NullPointerException if name or description is null
      */
     @Override
     public Workshop createWorkshop(String name, String description) {
@@ -288,8 +283,9 @@ public class WorkshopSystemImpl implements WorkshopSystem {
      * @param workshop  the workshop this team participates in
      * @param memberIds the list of student IDs that will be team members
      * @return the created team
+     * @throws NullPointerException     if name, workshop or memberIds is null
      * @throws IllegalArgumentException if:
-     *         - Any student ID in memberIds doesn't exist
+     *         - Any student ID in memberIds doesn't exist (a null ID included)
      *         - memberIds contains duplicate IDs
      *         - Any student in memberIds is already in a team
      *         - The workshop is not registered in this system
@@ -403,12 +399,13 @@ public class WorkshopSystemImpl implements WorkshopSystem {
      * workshops, each workshop with its teams, and each team with the details of its students.
      *
      * @param targetFileName the file to write (overwritten if it exists; its folder must exist)
+     * @throws NullPointerException         if targetFileName is null
      * @throws java.io.UncheckedIOException if the file cannot be written
      */
     @Override
     public void exportInstructorsDataToJson(File targetFileName) {
         requireNonNull(targetFileName, "Target file cannot be null");
-        jsonExporter.exportInstructors(targetFileName);
+        new JsonExporter(this).exportInstructors(targetFileName);
     }
 
     /**
@@ -416,12 +413,13 @@ public class WorkshopSystemImpl implements WorkshopSystem {
      * (null for a free student), the team's workshop and the workshop's instructor.
      *
      * @param targetFileName the file to write (overwritten if it exists; its folder must exist)
+     * @throws NullPointerException         if targetFileName is null
      * @throws java.io.UncheckedIOException if the file cannot be written
      */
     @Override
     public void exportStudentsDataToJson(File targetFileName) {
         requireNonNull(targetFileName, "Target file cannot be null");
-        jsonExporter.exportStudents(targetFileName);
+        new JsonExporter(this).exportStudents(targetFileName);
     }
 
     /**
@@ -429,12 +427,13 @@ public class WorkshopSystemImpl implements WorkshopSystem {
      * students, its workshop and the workshop's instructor.
      *
      * @param targetFileName the file to write (overwritten if it exists; its folder must exist)
+     * @throws NullPointerException         if targetFileName is null
      * @throws java.io.UncheckedIOException if the file cannot be written
      */
     @Override
     public void exportTeamsDataToJson(File targetFileName) {
         requireNonNull(targetFileName, "Target file cannot be null");
-        jsonExporter.exportTeams(targetFileName);
+        new JsonExporter(this).exportTeams(targetFileName);
     }
 
     /**
@@ -445,13 +444,14 @@ public class WorkshopSystemImpl implements WorkshopSystem {
      *
      * @param source the CSV file to read
      * @return the students registered by this import, in file order
+     * @throws NullPointerException         if source is null
      * @throws IllegalArgumentException     if the header is missing or wrong, or at the first rejected line
      * @throws java.io.UncheckedIOException if the file cannot be read
      */
     @Override
     public List<Student> importStudentDataFromFile(File source) {
         requireNonNull(source, "Source file cannot be null");
-        return csvImporter.importStudents(source);
+        return new StudentCsvImporter(this).importStudents(source);
     }
 
     /**

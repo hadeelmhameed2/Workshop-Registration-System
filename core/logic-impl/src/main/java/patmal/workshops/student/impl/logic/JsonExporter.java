@@ -17,6 +17,8 @@ import java.io.UncheckedIOException;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -106,16 +108,36 @@ final class JsonExporter {
      * Writes the records as a JSON array in UTF-8. An existing file is overwritten and a missing
      * one is created; its folder must already exist.
      *
-     * @throws UncheckedIOException if the file cannot be written
+     * @throws UncheckedIOException if the file cannot be written, including a path that the
+     *                              file system rejects
      */
     private static void write(File target, List<?> records, String what) {
-        try (Writer out = Files.newBufferedWriter(target.toPath(), StandardCharsets.UTF_8)) {
+        Path path = pathOf(target, what);
+        try (Writer out = Files.newBufferedWriter(path, StandardCharsets.UTF_8)) {
             WRITER.writeValue(out, records);
         } catch (IOException e) {
-            LOGGER.warn("Export of the {} to {} failed: {}", what, target.getAbsolutePath(), e.toString());
-            throw new UncheckedIOException("Cannot write the " + what + " export to " + target, e);
+            throw writeFailed(target, what, e);
         }
         LOGGER.info("Exported {} {} to {}", records.size(), what, target.getAbsolutePath());
+    }
+
+    /**
+     * File.toPath() throws an InvalidPathException (an IllegalArgumentException) for a name that the
+     * file system cannot hold, such as bad&lt;name&gt;.json on Windows. Such a file cannot be written,
+     * so it is reported like any other write failure.
+     */
+    private static Path pathOf(File target, String what) {
+        try {
+            return target.toPath();
+        } catch (InvalidPathException e) {
+            throw writeFailed(target, what, new IOException("Invalid file path: " + target, e));
+        }
+    }
+
+    /** Logs a failed export at WARN level and returns the exception that reports it, for the caller to throw. */
+    private static UncheckedIOException writeFailed(File target, String what, IOException cause) {
+        LOGGER.warn("Export of the {} to {} failed: {}", what, target.getAbsolutePath(), cause.toString());
+        return new UncheckedIOException("Cannot write the " + what + " export to " + target, cause);
     }
 
     /** The teams of each workshop, in creation order (a workshop has no getter for its teams). */

@@ -33,6 +33,14 @@
         <workshops.api.version>2.0</workshops.api.version>
         <workshop-tester.version>2.0</workshop-tester.version>
 
+        <!-- Third-party libraries -->
+        <log4j.version>2.26.1</log4j.version>
+        <commons-validator.version>1.11.0</commons-validator.version>
+        <jackson.version>2.22.4</jackson.version>
+        <commons-csv.version>1.14.1</commons-csv.version>
+        <!-- Transitive (from commons-csv), overridden: see dependencyManagement -->
+        <commons-codec.version>1.23.0</commons-codec.version>
+
         <!-- Build plugins -->
         <maven-clean-plugin.version>3.5.0</maven-clean-plugin.version>
         <maven-resources-plugin.version>3.5.0</maven-resources-plugin.version>
@@ -68,6 +76,49 @@
                 <artifactId>workshop-tester</artifactId>
                 <version>${workshop-tester.version}</version>
                 <scope>test</scope>
+            </dependency>
+
+            <!-- Logging: the API is used by the code, the core is the implementation behind it -->
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-api</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.logging.log4j</groupId>
+                <artifactId>log4j-core</artifactId>
+                <version>${log4j.version}</version>
+            </dependency>
+
+            <!-- E-mail validation -->
+            <dependency>
+                <groupId>commons-validator</groupId>
+                <artifactId>commons-validator</artifactId>
+                <version>${commons-validator.version}</version>
+            </dependency>
+
+            <!-- JSON export -->
+            <dependency>
+                <groupId>com.fasterxml.jackson.core</groupId>
+                <artifactId>jackson-databind</artifactId>
+                <version>${jackson.version}</version>
+            </dependency>
+
+            <!-- CSV import -->
+            <dependency>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-csv</artifactId>
+                <version>${commons-csv.version}</version>
+            </dependency>
+            <!--
+                Not used directly: commons-csv brings commons-codec 1.19.0, which is affected by
+                CVE-2026-119078 (versions 1.16.0 to 1.22.x, fixed in 1.23.0). Managing it here
+                overrides the version of the transitive dependency in every module.
+            -->
+            <dependency>
+                <groupId>commons-codec</groupId>
+                <artifactId>commons-codec</artifactId>
+                <version>${commons-codec.version}</version>
             </dependency>
 
             <!-- Our own modules -->

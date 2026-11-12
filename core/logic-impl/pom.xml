@@ -31,5 +31,37 @@
             <groupId>patmal.workshops</groupId>
             <artifactId>model</artifactId>
         </dependency>
+
+        <!--
+            Logging. The code is written against log4j-api only, so log4j-core (the
+            implementation) is not needed to compile: it is a runtime dependency.
+        -->
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- E-mail validation in createStudent / createInstructor -->
+        <dependency>
+            <groupId>commons-validator</groupId>
+            <artifactId>commons-validator</artifactId>
+        </dependency>
+
+        <!-- The export...DataToJson methods -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
+        <!-- importStudentDataFromFile (bonus) -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+        </dependency>
     </dependencies>
 </project>

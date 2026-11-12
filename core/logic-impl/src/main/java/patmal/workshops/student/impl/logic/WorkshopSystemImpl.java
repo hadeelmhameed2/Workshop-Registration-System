@@ -1,14 +1,15 @@
-package patmal.workshops.logic;
+package patmal.workshops.student.impl.logic;
 
 import patmal.workshops.api.model.Instructor;
 import patmal.workshops.api.model.Student;
 import patmal.workshops.api.model.Workshop;
 import patmal.workshops.api.model.Team;
 import patmal.workshops.api.logic.WorkshopSystem;
-import patmal.workshops.model.InstructorImpl;
-import patmal.workshops.model.StudentImpl;
-import patmal.workshops.model.WorkshopImpl;
-import patmal.workshops.model.TeamImpl;
+import patmal.workshops.student.impl.model.InstructorImpl;
+import patmal.workshops.student.impl.model.StudentImpl;
+import patmal.workshops.student.impl.model.WorkshopImpl;
+import patmal.workshops.student.impl.model.TeamImpl;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -361,5 +362,41 @@ public class WorkshopSystemImpl implements WorkshopSystem {
             instructorStudents.addAll(getStudentsOfWorkshop(workshop.getId()));
         }
         return instructorStudents;
+    }
+
+    /**
+     * Exports the instructors, drilling down to their workshops, teams and students, as JSON.
+     * Not implemented yet: a temporary stub so that the project compiles against API 2.0.
+     *
+     * @param targetFileName the file to write
+     * @throws UnsupportedOperationException always, until the JSON export is implemented
+     */
+    @Override
+    public void exportInstructorsDataToJson(File targetFileName) {
+        throw new UnsupportedOperationException("exportInstructorsDataToJson is not implemented yet");
+    }
+
+    /**
+     * Exports the students, each with its team, workshop and instructor, as JSON.
+     * Not implemented yet: a temporary stub so that the project compiles against API 2.0.
+     *
+     * @param targetFileName the file to write
+     * @throws UnsupportedOperationException always, until the JSON export is implemented
+     */
+    @Override
+    public void exportStudentsDataToJson(File targetFileName) {
+        throw new UnsupportedOperationException("exportStudentsDataToJson is not implemented yet");
+    }
+
+    /**
+     * Exports the teams, each with its students, workshop and instructor, as JSON.
+     * Not implemented yet: a temporary stub so that the project compiles against API 2.0.
+     *
+     * @param targetFileName the file to write
+     * @throws UnsupportedOperationException always, until the JSON export is implemented
+     */
+    @Override
+    public void exportTeamsDataToJson(File targetFileName) {
+        throw new UnsupportedOperationException("exportTeamsDataToJson is not implemented yet");
     }
 }

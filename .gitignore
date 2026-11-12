@@ -43,3 +43,8 @@ bin/
 
 ### Mac OS ###
 .DS_Store
+
+### workshop-cli output (written to the folder it is run from) ###
+instructors.json
+students.json
+teams.json

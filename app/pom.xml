@@ -19,5 +19,153 @@
             <groupId>patmal.workshops.student.impl</groupId>
             <artifactId>logic-impl</artifactId>
         </dependency>
+
+        <!--
+            Used directly by Main, so declared directly, even though logic-impl brings them too.
+            (logic uses model, but the installed API jars do not say so: model is declared as well.)
+        -->
+        <dependency>
+            <groupId>patmal.workshops</groupId>
+            <artifactId>logic</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>patmal.workshops</groupId>
+            <artifactId>model</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-api</artifactId>
+        </dependency>
+
+        <!--
+            The tester is needed by the build (verify phase, see exec-maven-plugin below) but not by
+            the application: test scope keeps it out of the uber jar.
+        -->
+        <dependency>
+            <groupId>patmal.workshops</groupId>
+            <artifactId>workshop-tester</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
+
+    <build>
+        <!-- The jar of this module, replaced by the uber jar in the package phase: target/workshop-cli.jar -->
+        <finalName>workshop-cli</finalName>
+
+        <plugins>
+            <!--
+                Uber jar: the application, our modules and all their compile and runtime dependencies
+                (test dependencies such as the tester are never included). Bound to the package phase,
+                so a normal "mvn clean install" produces it.
+            -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>workshop-cli-uber-jar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <!-- No module depends on app, so a reduced pom without the packed dependencies is not needed -->
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <!-- Module descriptors of the libraries: meaningless (and clashing) in one merged jar -->
+                                        <exclude>module-info.class</exclude>
+                                        <exclude>META-INF/versions/*/module-info.class</exclude>
+                                        <!-- Signatures of a library would not match the merged jar -->
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                        <!-- The manifest of the uber jar is written by the ManifestResourceTransformer -->
+                                        <exclude>META-INF/MANIFEST.MF</exclude>
+                                        <!-- Log4j's lists of its own dependencies: meaningless in the merged jar -->
+                                        <exclude>META-INF/DEPENDENCIES</exclude>
+                                        <!--
+                                            All the libraries are under the Apache License 2.0 and each jar holds the
+                                            same license text: the uber jar keeps one copy, META-INF/LICENSE of log4j-core
+                                            (see the two filters below). Their NOTICE files are merged by a transformer.
+                                        -->
+                                        <exclude>META-INF/LICENSE.txt</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>com.fasterxml.jackson.core:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/LICENSE</exclude>
+                                    </excludes>
+                                </filter>
+                                <filter>
+                                    <artifact>org.apache.logging.log4j:log4j-api</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/LICENSE</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>patmal.workshops.student.impl.app.Main</mainClass>
+                                    <manifestEntries>
+                                        <!--
+                                            Log4j, Jackson and the Commons libraries are multi-release jars: their
+                                            classes for newer Java versions live in META-INF/versions and are only
+                                            used when the jar declares itself multi-release.
+                                        -->
+                                        <Multi-Release>true</Multi-Release>
+                                    </manifestEntries>
+                                </transformer>
+                                <!-- Merges the META-INF/services files (Log4j finds its implementation through one) -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer"/>
+                                <!-- Merges the NOTICE files of the libraries into one META-INF/NOTICE -->
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ApacheNoticeResourceTransformer">
+                                    <addHeader>false</addHeader>
+                                </transformer>
+                            </transformers>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!--
+                Bonus: runs the workshop tester in the verify phase, so a failing tester fails the build.
+                The exec goal starts a separate JVM. The java goal would run the tester inside Maven's
+                own JVM, where it cannot work: the tester looks for the implementation on the
+                java.class.path of the JVM (there: Maven's launcher only), and it ends with
+                System.exit(), which would stop Maven itself (also on success, before the install
+                phase).
+                Skip it with -Dexec.skip
+            -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>run-workshop-tester</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                        <configuration>
+                            <!-- The JDK that runs Maven (the API jars need Java 25), not whatever java is on the PATH -->
+                            <executable>${java.home}/bin/java</executable>
+                            <!-- The test class path: this module, logic-impl, model-impl, the libraries and the tester -->
+                            <classpathScope>test</classpathScope>
+                            <arguments>
+                                <!-- Only warnings from our logging: the tester's report stays readable -->
+                                <argument>-Dworkshops.log.level=warn</argument>
+                                <argument>-classpath</argument>
+                                <classpath/>
+                                <argument>patmal.workshops.main.Main</argument>
+                            </arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
 </project>

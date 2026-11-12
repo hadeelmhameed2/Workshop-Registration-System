@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Logging configuration of workshop-cli (Log4j 2).
+
+    Our own code logs every creation, association, export and import at INFO level and every
+    rejected operation at WARN level. The level of our loggers can be changed when starting
+    the application, for example to see only the warnings:
+        java -Dworkshops.log.level=warn -jar workshop-cli.jar
+-->
+<Configuration status="WARN">
+    <Appenders>
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} %-5level [%c{1}] %msg%n"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <!-- Our code (patmal.workshops...): its events go up to the Console of the root logger -->
+        <Logger name="patmal.workshops" level="${sys:workshops.log.level:-info}"/>
+
+        <!-- Everything else (the libraries): warnings and errors only -->
+        <Root level="warn">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>
